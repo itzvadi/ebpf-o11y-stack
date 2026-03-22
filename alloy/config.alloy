@@ -42,12 +42,32 @@ prometheus.remote_write "mimir" {
   }
 }
 
+prometheus.scrape "pyroscope" {
+  targets = [{"__address__" = "pyroscope:4040"}]
+  forward_to = [prometheus.remote_write.mimir.receiver]
+  scrape_interval = "15s"
+}
+
 loki.write "default" {
   endpoint {
     url = "http://loki:3100/loki/api/v1/push"
   }
   external_labels = {
     job     = "alloy",
+    cluster = "local",
+    env     = "dev",
+  }
+}
+
+pyroscope.ebpf "default" {
+  forward_to = [pyroscope.write.default.receiver]
+}
+
+pyroscope.write "default" {
+  endpoint {
+    url = "http://pyroscope:4040"
+  }
+  external_labels = {
     cluster = "local",
     env     = "dev",
   }

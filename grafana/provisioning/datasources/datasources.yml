@@ -17,6 +17,15 @@ datasources:
     secureJsonData:
       httpHeaderValue1: anonymous
 
+  # ── Pyroscope (continuous profiling) ─────────────────────────────────────
+  - name: Pyroscope
+    type: grafana-pyroscope-datasource
+    uid: pyroscope
+    access: proxy
+    url: http://pyroscope:4040
+    isDefault: false
+    editable: true
+
   # ── Loki (log & trace aggregation) ───────────────────────────────────────
   - name: Loki
     type: loki

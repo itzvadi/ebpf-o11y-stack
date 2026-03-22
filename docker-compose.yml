@@ -9,6 +9,7 @@ volumes:
   mimir-data:
   grafana-data:
   alloy-data:
+  pyroscope-data:
 
 services:
 
@@ -76,6 +77,17 @@ services:
       mimir:
         condition: service_started
 
+  pyroscope:
+    image: grafana/pyroscope:1.12.0
+    container_name: pyroscope
+    restart: unless-stopped
+    networks:
+      - observability
+    ports:
+      - "4040:4040"
+    volumes:
+      - pyroscope-data:/data
+
   grafana:
     image: grafana/grafana:11.5.2
     container_name: grafana
@@ -97,6 +109,8 @@ services:
         condition: service_healthy
       mimir:
         condition: service_started
+      pyroscope:
+        condition: service_started
 
   demo-app:
     image: nginx:alpine
@@ -113,6 +127,7 @@ services:
     image: alpine:3.19
     container_name: traffic-gen
     restart: unless-stopped
+    init: true
     networks:
       - observability
     depends_on:

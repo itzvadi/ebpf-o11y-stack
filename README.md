@@ -13,6 +13,7 @@ Normally, to monitor an app you'd add a monitoring SDK to it, redeploy it, and m
 A complete, self-hosted observability stack. Drop it alongside any Docker-based workload and you instantly get:
 
 - **Metrics** — request rate, error rate, latency (RED) for every service
+- **Profiles** — continuous CPU/memory flame graphs via eBPF, no SDK needed
 - **Logs** — aggregated and searchable
 - **Dashboards** — pre-built, auto-populated, no configuration needed
 
@@ -29,11 +30,12 @@ Your services
      │
      ▼
   Alloy              ← collects and routes the data
-  ├── metrics ────▶  Mimir    ← long-term metric storage
-  └── logs ───────▶  Loki     ← log aggregation
+  ├── metrics ────▶  Mimir      ← long-term metric storage
+  ├── profiles ───▶  Pyroscope  ← continuous profiling (flame graphs)
+  └── logs ───────▶  Loki       ← log aggregation
                         │
                         ▼
-                     Grafana  ← dashboards & exploration
+                     Grafana    ← dashboards & exploration
 ```
 
 ## Quick start
@@ -74,13 +76,14 @@ Beyla picks it up automatically — no changes to your service needed.
 
 ## Stack
 
-| Service   | URL                     | Purpose                  |
-|-----------|-------------------------|--------------------------|
-| Grafana   | http://localhost:3000   | Dashboards (admin/admin) |
-| Loki      | http://localhost:3100   | Logs                     |
-| Mimir     | http://localhost:9009   | Metrics                  |
-| Alloy UI  | http://localhost:12345  | Pipeline status          |
-| demo-app  | http://localhost:8080   | Sample nginx target      |
+| Service    | URL                     | Purpose                  |
+|------------|-------------------------|--------------------------|
+| Grafana    | http://localhost:3000   | Dashboards (admin/admin) |
+| Loki       | http://localhost:3100   | Logs                     |
+| Mimir      | http://localhost:9009   | Metrics                  |
+| Pyroscope  | http://localhost:4040   | Continuous profiling     |
+| Alloy UI   | http://localhost:12345  | Pipeline status          |
+| demo-app   | http://localhost:8080   | Sample nginx target      |
 
 ## Useful commands
 
