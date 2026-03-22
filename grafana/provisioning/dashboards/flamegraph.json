@@ -1,0 +1,65 @@
+{
+  "title": "CPU Flamegraph",
+  "uid": "cpu-flamegraph",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-15m", "to": "now" },
+  "tags": ["ebpf", "pyroscope", "profiling"],
+  "templating": {
+    "list": [
+      {
+        "name": "service_name",
+        "label": "Service",
+        "type": "query",
+        "datasource": { "type": "grafana-pyroscope-datasource", "uid": "pyroscope" },
+        "query": "label_values(service_name)",
+        "refresh": 2,
+        "multi": false,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "CPU Flamegraph — all processes",
+      "description": "Captured via eBPF. No instrumentation required.",
+      "type": "flamegraph",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 16 },
+      "datasource": { "type": "grafana-pyroscope-datasource", "uid": "pyroscope" },
+      "targets": [
+        {
+          "refId": "A",
+          "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+          "labelSelector": "{cluster=\"local\"}",
+          "groupBy": []
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "CPU Time by Service",
+      "description": "Relative CPU usage per profiled service.",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 8 },
+      "datasource": { "type": "grafana-pyroscope-datasource", "uid": "pyroscope" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ns",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+          "labelSelector": "{cluster=\"local\"}",
+          "groupBy": ["service_name"]
+        }
+      ]
+    }
+  ]
+}

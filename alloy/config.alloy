@@ -1,15 +1,16 @@
-// Grafana Alloy – eBPF observability pipeline
-// Beyla auto-instruments services → metrics to Mimir, logs to Loki
+// Grafana Alloy — zero-instrumentation eBPF observability pipeline
+//
+// Two eBPF probes run in parallel, no changes to target services required:
+//   beyla.ebpf   → HTTP/gRPC RED metrics → Mimir (Prometheus)
+//   pyroscope.ebpf → continuous CPU profiles → Pyroscope
 
+// ── RED metrics via Beyla ─────────────────────────────────────────────────
 beyla.ebpf "default" {
-  open_port = "80,443,3000,3100,8080,8443,9009,8000-8999"
+  open_port = "80,443,8080,8443,8000-8999"
 
   discovery {
     services {
-      open_ports = "80,443,3000,3100,8080,8443,9009,8000-8999"
-    }
-    exclude_services {
-      exe_path = "beyla"
+      open_ports = "80,443,8080,8443,8000-8999"
     }
     exclude_services {
       exe_path = "alloy"
@@ -17,7 +18,7 @@ beyla.ebpf "default" {
   }
 
   metrics {
-    features = ["application", "application_span", "application_service_graph"]
+    features = ["application"]
   }
 
   output {}
@@ -38,27 +39,10 @@ prometheus.remote_write "mimir" {
   }
   external_labels = {
     cluster = "local",
-    env     = "dev",
   }
 }
 
-prometheus.scrape "pyroscope" {
-  targets = [{"__address__" = "pyroscope:4040"}]
-  forward_to = [prometheus.remote_write.mimir.receiver]
-  scrape_interval = "15s"
-}
-
-loki.write "default" {
-  endpoint {
-    url = "http://loki:3100/loki/api/v1/push"
-  }
-  external_labels = {
-    job     = "alloy",
-    cluster = "local",
-    env     = "dev",
-  }
-}
-
+// ── Continuous CPU profiling ──────────────────────────────────────────────
 pyroscope.ebpf "default" {
   forward_to = [pyroscope.write.default.receiver]
 }
@@ -69,12 +53,5 @@ pyroscope.write "default" {
   }
   external_labels = {
     cluster = "local",
-    env     = "dev",
   }
-}
-
-logging {
-  level    = "info"
-  format   = "logfmt"
-  write_to = [loki.write.default.receiver]
 }

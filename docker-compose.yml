@@ -1,55 +1,23 @@
-name: observability
+name: ebpf-observability
 
 networks:
-  observability:
+  ebpf:
     driver: bridge
 
 volumes:
-  loki-data:
+  pyroscope-data:
   mimir-data:
   grafana-data:
-  pyroscope-data:
 
 services:
 
-  loki:
-    image: grafana/loki:3.4.1
-    container_name: loki
-    restart: unless-stopped
-    networks:
-      - observability
-    ports:
-      - "127.0.0.1:3100:3100"
-    volumes:
-      - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
-      - loki-data:/loki
-    command: -config.file=/etc/loki/loki-config.yml
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:3100/ready || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-
-  mimir:
-    image: grafana/mimir:2.15.0
-    container_name: mimir
-    restart: unless-stopped
-    networks:
-      - observability
-    ports:
-      - "127.0.0.1:9009:9009"
-    volumes:
-      - ./mimir/mimir-config.yml:/etc/mimir/mimir-config.yml:ro
-      - mimir-data:/data
-    command: -config.file=/etc/mimir/mimir-config.yml
-
+  # ── eBPF pipeline ─────────────────────────────────────────────────────────
   alloy:
     image: grafana/alloy:v1.8.2
     container_name: alloy
     restart: unless-stopped
     networks:
-      - observability
+      - ebpf
     ports:
       - "127.0.0.1:12345:12345"
     volumes:
@@ -70,43 +38,72 @@ services:
     security_opt:
       - apparmor:unconfined
     depends_on:
-      loki:
-        condition: service_healthy
-      mimir:
-        condition: service_started
+      - pyroscope
+      - mimir
 
+  # ── Storage ───────────────────────────────────────────────────────────────
   pyroscope:
     image: grafana/pyroscope:1.12.0
     container_name: pyroscope
     restart: unless-stopped
     networks:
-      - observability
+      - ebpf
     ports:
       - "127.0.0.1:4040:4040"
     volumes:
       - pyroscope-data:/data
 
+  mimir:
+    image: grafana/mimir:2.15.0
+    container_name: mimir
+    restart: unless-stopped
+    networks:
+      - ebpf
+    ports:
+      - "127.0.0.1:9009:9009"
+    volumes:
+      - ./mimir/mimir-config.yml:/etc/mimir/mimir-config.yml:ro
+      - mimir-data:/data
+    command: -config.file=/etc/mimir/mimir-config.yml
+
+  # ── Dashboards ────────────────────────────────────────────────────────────
   grafana:
     image: grafana/grafana:11.5.2
     container_name: grafana
     restart: unless-stopped
     networks:
-      - observability
+      - ebpf
     ports:
       - "127.0.0.1:3000:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_AUTH_ANONYMOUS_ENABLED=false
-      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
     depends_on:
-      loki:
-        condition: service_healthy
-      mimir:
-        condition: service_started
-      pyroscope:
-        condition: service_started
+      - pyroscope
+      - mimir
 
+  # ── Demo workload ─────────────────────────────────────────────────────────
+  demo-app:
+    image: nginx:alpine
+    container_name: demo-app
+    restart: unless-stopped
+    networks:
+      - ebpf
+    ports:
+      - "127.0.0.1:8080:80"
+
+  traffic-gen:
+    image: alpine:3.19
+    container_name: traffic-gen
+    restart: unless-stopped
+    init: true
+    networks:
+      - ebpf
+    depends_on:
+      - demo-app
+    command: >
+      sh -c "while true; do wget -q -O- http://demo-app:80 > /dev/null 2>&1; sleep 2; done"
