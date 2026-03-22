@@ -23,8 +23,11 @@ Zero changes to your services. Zero instrumentation code.
 
 ```mermaid
 flowchart TD
-    subgraph targets["Instrumented Services"]
-        demo["demo-app\nnginx :8080"]
+    subgraph targets["Instrumented Services (auto-discovered via eBPF)"]
+        demo["demo-app :8080"]
+        loki_svc["loki :3100"]
+        mimir_svc["mimir :9009"]
+        grafana_svc["grafana :3000"]
         any["any service\non observability network"]
     end
 
