@@ -1,0 +1,35 @@
+apiVersion: 1
+
+datasources:
+  # ── Mimir (Prometheus-compatible remote storage) ──────────────────────────
+  - name: Mimir
+    type: prometheus
+    uid: mimir
+    access: proxy
+    url: http://mimir:9009/prometheus
+    isDefault: true
+    editable: true
+    jsonData:
+      timeInterval: "15s"
+      httpMethod: POST
+      # Mimir multi-tenancy disabled → use anonymous org
+      httpHeaderName1: X-Scope-OrgID
+    secureJsonData:
+      httpHeaderValue1: anonymous
+
+  # ── Loki (log & trace aggregation) ───────────────────────────────────────
+  - name: Loki
+    type: loki
+    uid: loki
+    access: proxy
+    url: http://loki:3100
+    isDefault: false
+    editable: true
+    jsonData:
+      maxLines: 1000
+      derivedFields:
+        # Auto-link trace IDs in logs to Loki's own trace view
+        - name: TraceID
+          matcherRegex: "traceID=(\\w+)"
+          url: "$${__value.raw}"
+          datasourceUid: loki

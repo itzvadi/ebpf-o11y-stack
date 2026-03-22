@@ -1,0 +1,218 @@
+{
+  "title": "eBPF RED Metrics (Beyla)",
+  "uid": "ebpf-red-metrics",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-15m", "to": "now" },
+  "tags": ["ebpf", "beyla", "red"],
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "label": "Service",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "mimir" },
+        "query": "label_values(http_server_request_duration_seconds_count{cluster=\"local\"}, service_name)",
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".+",
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request Rate (req/s) by Service",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (service_name) (rate(http_server_request_duration_seconds_count{cluster=\"local\", service_name=~\"$service\"}[5m]))",
+          "legendFormat": "{{service_name}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Error Rate (5xx req/s) by Service",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": { "fixedColor": "red", "mode": "fixed" },
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (service_name) (rate(http_server_request_duration_seconds_count{cluster=\"local\", service_name=~\"$service\", http_response_status_code=~\"5..\"}[5m]))",
+          "legendFormat": "{{service_name}} errors",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "p50 / p95 / p99 Latency by Service",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "lineWidth": 2, "fillOpacity": 5 }
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (service_name, le) (rate(http_server_request_duration_seconds_bucket{cluster=\"local\", service_name=~\"$service\"}[5m])))",
+          "legendFormat": "p50 {{service_name}}",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (service_name, le) (rate(http_server_request_duration_seconds_bucket{cluster=\"local\", service_name=~\"$service\"}[5m])))",
+          "legendFormat": "p95 {{service_name}}",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (service_name, le) (rate(http_server_request_duration_seconds_bucket{cluster=\"local\", service_name=~\"$service\"}[5m])))",
+          "legendFormat": "p99 {{service_name}}",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "HTTP Status Code Breakdown",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (service_name, http_response_status_code) (rate(http_server_request_duration_seconds_count{cluster=\"local\", service_name=~\"$service\"}[5m]))",
+          "legendFormat": "{{service_name}} {{http_response_status_code}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Request Rate by Route (Top 10)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "lineWidth": 2, "fillOpacity": 5 }
+        }
+      },
+      "targets": [
+        {
+          "expr": "topk(10, sum by (service_name, http_route) (rate(http_server_request_duration_seconds_count{cluster=\"local\", service_name=~\"$service\"}[5m])))",
+          "legendFormat": "{{service_name}} {{http_route}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Beyla Instrumented Processes",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 24, "w": 8, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "thresholds" },
+          "thresholds": { "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 5 }
+          ]}
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(beyla_instrumented_processes{cluster=\"local\"})",
+          "legendFormat": "Total Processes",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Instrumented Processes by Name",
+      "type": "bargauge",
+      "gridPos": { "x": 8, "y": 24, "w": 16, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "fieldConfig": {
+        "defaults": { "unit": "short" }
+      },
+      "options": { "orientation": "horizontal" },
+      "targets": [
+        {
+          "expr": "beyla_instrumented_processes{cluster=\"local\"}",
+          "legendFormat": "{{process_name}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Outbound (Client) Request Rate by Service",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 28, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (service_name) (rate(http_client_request_duration_seconds_count{cluster=\"local\", service_name=~\"$service\"}[5m]))",
+          "legendFormat": "{{service_name}} (client)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Outbound p95 Latency by Service",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 28, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "mimir" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "lineWidth": 2, "fillOpacity": 5 }
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (service_name, le) (rate(http_client_request_duration_seconds_bucket{cluster=\"local\", service_name=~\"$service\"}[5m])))",
+          "legendFormat": "p95 {{service_name}} (client)",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}
