@@ -21,21 +21,41 @@ Zero changes to your services. Zero instrumentation code.
 
 ## How it works
 
-```
-Your services
-     │
-     │  (HTTP/gRPC traffic)
-     ▼
-  Beyla (eBPF)       ← watches kernel-level network events
-     │
-     ▼
-  Alloy              ← collects and routes the data
-  ├── metrics ────▶  Mimir      ← long-term metric storage
-  ├── profiles ───▶  Pyroscope  ← continuous profiling (flame graphs)
-  └── logs ───────▶  Loki       ← log aggregation
-                        │
-                        ▼
-                     Grafana    ← dashboards & exploration
+```mermaid
+flowchart TD
+    subgraph targets["Instrumented Services"]
+        demo["demo-app\nnginx :8080"]
+        any["any service\non observability network"]
+    end
+
+    subgraph alloy["Alloy (eBPF Pipeline) :12345"]
+        beyla["beyla.ebpf\nHTTP/gRPC RED metrics"]
+        pyrebpf["pyroscope.ebpf\nCPU / memory profiles"]
+        scrape["prometheus.scrape\nPyroscope self-metrics"]
+        logfwd["logging\nAlloy internal logs"]
+    end
+
+    subgraph storage["Storage"]
+        mimir["Mimir :9009\nlong-term metrics"]
+        pyroscope["Pyroscope :4040\ncontinuous profiles"]
+        loki["Loki :3100\nlogs"]
+    end
+
+    grafana["Grafana :3000\ndashboards & exploration"]
+
+    targets -->|"kernel eBPF hooks\n(no code changes)"| beyla
+    targets -->|"kernel eBPF hooks\n(no code changes)"| pyrebpf
+
+    beyla -->|"prometheus.remote_write"| mimir
+    scrape -->|"prometheus.remote_write"| mimir
+    pyrebpf -->|"pyroscope.write"| pyroscope
+    logfwd -->|"loki.write"| loki
+
+    pyroscope -->|"scrape /metrics"| scrape
+
+    mimir --> grafana
+    pyroscope --> grafana
+    loki --> grafana
 ```
 
 ## Quick start
