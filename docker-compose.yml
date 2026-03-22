@@ -8,7 +8,6 @@ volumes:
   loki-data:
   mimir-data:
   grafana-data:
-  alloy-data:
   pyroscope-data:
 
 services:
@@ -20,7 +19,7 @@ services:
     networks:
       - observability
     ports:
-      - "3100:3100"
+      - "127.0.0.1:3100:3100"
     volumes:
       - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
       - loki-data:/loki
@@ -39,7 +38,7 @@ services:
     networks:
       - observability
     ports:
-      - "9009:9009"
+      - "127.0.0.1:9009:9009"
     volumes:
       - ./mimir/mimir-config.yml:/etc/mimir/mimir-config.yml:ro
       - mimir-data:/data
@@ -52,10 +51,9 @@ services:
     networks:
       - observability
     ports:
-      - "12345:12345"
+      - "127.0.0.1:12345:12345"
     volumes:
       - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
-      - alloy-data:/var/lib/alloy
       - /proc:/proc:ro
       - /sys:/sys:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -84,7 +82,7 @@ services:
     networks:
       - observability
     ports:
-      - "4040:4040"
+      - "127.0.0.1:4040:4040"
     volumes:
       - pyroscope-data:/data
 
@@ -95,10 +93,10 @@ services:
     networks:
       - observability
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_AUTH_ANONYMOUS_ENABLED=false
       - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
     volumes:
@@ -112,40 +110,3 @@ services:
       pyroscope:
         condition: service_started
 
-  demo-app:
-    image: nginx:alpine
-    container_name: demo-app
-    restart: unless-stopped
-    networks:
-      - observability
-    ports:
-      - "8080:80"
-    labels:
-      beyla.instrument: "true"
-
-  traffic-gen:
-    image: alpine:3.19
-    container_name: traffic-gen
-    restart: unless-stopped
-    init: true
-    networks:
-      - observability
-    depends_on:
-      loki:
-        condition: service_healthy
-      mimir:
-        condition: service_started
-    command: >
-      sh -c "
-        while true; do
-          wget -q -O- http://demo-app:80 > /dev/null 2>&1;
-          wget -q -O- http://loki:3100/ready > /dev/null 2>&1;
-          wget -q -O- 'http://loki:3100/loki/api/v1/labels' > /dev/null 2>&1;
-          wget -q -O- 'http://loki:3100/loki/api/v1/query?query=%7Bjob%3D%22alloy%22%7D&limit=5' > /dev/null 2>&1;
-          wget -q -O- 'http://loki:3100/metrics' > /dev/null 2>&1;
-          wget -q -O- 'http://mimir:9009/ready' > /dev/null 2>&1;
-          wget -q -O- 'http://mimir:9009/prometheus/api/v1/labels' --header='X-Scope-OrgID: anonymous' > /dev/null 2>&1;
-          wget -q -O- 'http://mimir:9009/prometheus/api/v1/query?query=up' --header='X-Scope-OrgID: anonymous' > /dev/null 2>&1;
-          sleep 5;
-        done
-      "
