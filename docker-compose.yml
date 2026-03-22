@@ -95,15 +95,3 @@ services:
       - ebpf
     ports:
       - "127.0.0.1:8080:80"
-
-  traffic-gen:
-    image: alpine:3.19
-    container_name: traffic-gen
-    restart: unless-stopped
-    init: true
-    networks:
-      - ebpf
-    depends_on:
-      - demo-app
-    command: >
-      sh -c "while true; do wget -q -O- http://demo-app:80 > /dev/null 2>&1; sleep 2; done"

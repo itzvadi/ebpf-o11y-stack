@@ -6,8 +6,6 @@
 
 // ── RED metrics via Beyla ─────────────────────────────────────────────────
 beyla.ebpf "default" {
-  open_port = "80,443,8080,8443,8000-8999"
-
   discovery {
     services {
       open_ports = "80,443,8080,8443,8000-8999"

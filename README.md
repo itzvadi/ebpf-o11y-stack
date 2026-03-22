@@ -25,7 +25,7 @@ docker compose up -d
 
 **2. Generate some traffic**
 
-The `demo-app` (nginx) and `traffic-gen` start automatically. Traffic hits port 8080 every 2 seconds, producing visible CPU load and HTTP metrics right away.
+The `demo-app` (nginx) starts automatically and is immediately visible to Alloy's eBPF probes. Hit it manually or just let it idle — Pyroscope will profile its processes either way.
 
 **3. Open Grafana**
 
