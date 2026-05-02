@@ -1,19 +1,30 @@
-.PHONY: up down restart logs ps clean
+COMPOSE := $(shell if docker compose version >/dev/null 2>&1; then echo "docker compose"; else echo "docker-compose"; fi)
+
+.PHONY: up down restart logs ps traffic bootstrap metrics clean
 
 up:
-	docker compose up -d
+	$(COMPOSE) up -d
 
 down:
-	docker compose down
+	$(COMPOSE) down
 
 restart:
-	docker compose restart alloy
+	$(COMPOSE) restart alloy
 
 logs:
-	docker compose logs -f alloy
+	$(COMPOSE) logs -f alloy
 
 ps:
-	docker compose ps
+	$(COMPOSE) ps
+
+traffic:
+	./scripts/generate_traffic.sh
+
+bootstrap:
+	./scripts/bootstrap.sh
+
+metrics:
+	python3 scripts/query_metrics.py
 
 clean:
-	docker compose down -v
+	$(COMPOSE) down -v
